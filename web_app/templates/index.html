@@ -1126,6 +1126,8 @@
         let progressStart = Date.now();
         const notifiedAlerts = new Map(); // ticker -> last notified timestamp
         let topAlertPlan = null;
+        let currentBudget = parseFloat(localStorage.getItem('user_quant_budget')) || 5000.0;
+        let latestServerData = null;
 
         // Initialize Notification button state
         function initNotifButton() {
@@ -1142,8 +1144,6 @@
                 txt.innerText = '🔕 Notifications Blocked';
             }
         }
-        initNotifButton();
-        initBudgetUI();
 
         async function enablePushNotifications() {
             if (!("Notification" in window)) {
@@ -1252,10 +1252,6 @@
             requestAnimationFrame(updateProgressBar);
         }
         requestAnimationFrame(updateProgressBar);
-
-        // Dynamic User Budget State (Defaults to ₹5,000, remembers user choice via localStorage)
-        let currentBudget = parseFloat(localStorage.getItem('user_quant_budget')) || 5000.0;
-        let latestServerData = null;
 
         function initBudgetUI() {
             const input = document.getElementById('budgetInput');
@@ -1655,6 +1651,10 @@
                 btn.innerText = '⚡ Deep Scan Now';
             }
         }
+
+        // Bootstrap UI state
+        initNotifButton();
+        initBudgetUI();
 
         // Start 2-second automatic live sync
         fetchLiveData();
