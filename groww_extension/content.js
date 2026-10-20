@@ -9,6 +9,7 @@
 console.log("[Quant Bridge] Groww Auto-Order & Safety Alert Script initialized.");
 
 const SERVER_ENDPOINTS = [
+    "https://stock-system-jade.vercel.app",
     "http://localhost:9012",
     "http://127.0.0.1:9012",
     "https://test-admin.housiey.com"
