@@ -599,7 +599,43 @@
         }
 
         tr:last-child td { border-bottom: none; }
-        tr:hover td { background: var(--surface-card-hover); }
+        
+        .clickable-stock-row {
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+        }
+
+        .clickable-stock-row:hover td {
+            background: rgba(56, 189, 248, 0.09) !important;
+        }
+
+        .clickable-stock-row:hover .stock-title {
+            color: var(--accent-cyan);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .clickable-stock-row:hover .groww-tag {
+            background: rgba(16, 185, 129, 0.25);
+            border-color: #10b981;
+            color: #34d399;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+        }
+
+        .groww-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+            letter-spacing: 0.2px;
+        }
 
         .badge-status {
             padding: 4px 10px;
@@ -925,6 +961,7 @@
         <div class="section-header">
             <div class="section-title">
                 <span>📊 Live Watchlist Technical Radar (Top 30 Stocks)</span>
+                <span style="font-size:12px; font-weight:600; color:var(--accent-cyan); margin-left:14px; background:rgba(56,189,248,0.1); padding:4px 12px; border-radius:12px; border:1px solid rgba(56,189,248,0.25);">⚡ Click any stock row to open in Groww App/Web</span>
             </div>
         </div>
         <div class="table-container">
@@ -1192,7 +1229,9 @@
                         <div>
                             <div class="card-top">
                                 <div>
-                                    <span class="stock-name">${plan.name}</span>
+                                    <span class="stock-name" onclick="openStockInGroww('${plan.slug ? 'https://groww.in/stocks/' + plan.slug : ''}')" style="cursor:pointer;" title="Click to open ${plan.name} in Groww app / web">
+                                        ${plan.name} <span style="font-size:12px; color:var(--accent-cyan); opacity:0.8;">↗</span>
+                                    </span>
                                     <div class="stock-ticker mono">${plan.ticker}</div>
                                 </div>
                                 <div class="confluence-badge ${isHighSafe ? 'high-safe-glow' : ''}">${safeBadgeText}</div>
@@ -1269,20 +1308,43 @@
 
                     const safeColor = safePct >= 90 ? '#34d399' : (safePct >= 70 ? 'var(--accent-green)' : (safePct >= 50 ? 'var(--accent-cyan)' : 'var(--text-muted)'));
 
+                    const growwSlug = item.slug || (item.name ? item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '');
+                    const growwUrl = growwSlug ? `https://groww.in/stocks/${growwSlug}` : `https://groww.in/search?q=${encodeURIComponent(item.name || item.ticker)}`;
+
                     rowsHtml += `
-                    <tr>
-                        <td style="font-weight:700;">${item.name} <span class="mono" style="font-size:11px; color:var(--text-muted);">${item.ticker}</span></td>
+                    <tr onclick="openStockInGroww('${growwUrl}')" class="clickable-stock-row" title="⚡ Click anywhere on this row to open ${item.name} in Groww app / web">
+                        <td style="font-weight:700;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span class="stock-title">${item.name}</span>
+                                <span class="mono" style="font-size:11px; color:var(--text-muted);">${item.ticker}</span>
+                                <span class="groww-tag" title="Open ${item.name} in Groww">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                    Groww ↗
+                                </span>
+                            </div>
+                        </td>
                         <td class="mono" style="font-weight:700;">₹${item.price.toFixed(2)}</td>
                         <td class="mono" style="color:${item.return_20d >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">${item.return_20d >= 0 ? '+' : ''}${item.return_20d.toFixed(1)}%</td>
                         <td class="mono" style="color:${rsColor}; font-weight:700;">${rsSign}${item.relative_strength.toFixed(1)}%</td>
                         <td class="mono">${item.adx.toFixed(1)} (${item.trend_direction})</td>
                         <td class="mono">${item.vol_ratio.toFixed(1)}x</td>
                         <td><span class="mono" style="font-weight:800; font-size:13px; color:${safeColor};">${safePct}%</span></td>
-                        <td>${actionBadge}</td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                ${actionBadge}
+                            </div>
+                        </td>
                     </tr>
                     `;
                 });
                 tbody.innerHTML = rowsHtml;
+            }
+        }
+
+        // Open direct stock overview page in Groww (Web or App)
+        function openStockInGroww(url) {
+            if (url) {
+                window.open(url, '_blank');
             }
         }
 
