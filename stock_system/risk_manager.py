@@ -80,12 +80,12 @@ def calculate_trade_plan(stock_candidate: Dict, budget: float = MAX_DAILY_INVEST
         "signals": analysis['signals']
     }
 
-def generate_daily_trade_recommendations(scored_stocks: List[Dict], max_trades: int = 3) -> List[Dict]:
+def generate_daily_trade_recommendations(scored_stocks: List[Dict], max_trades: int = 3, budget: float = MAX_DAILY_INVESTMENT) -> List[Dict]:
     """Generates execution-ready trade setups for the top ranked stocks."""
     trade_plans = []
 
     for stock in scored_stocks:
-        plan = calculate_trade_plan(stock)
+        plan = calculate_trade_plan(stock, budget=budget)
         if plan.get("valid", False):
             trade_plans.append(plan)
         if len(trade_plans) >= max_trades:

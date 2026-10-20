@@ -42,6 +42,7 @@ STATE = {
         "nifty_close": 22610.0,
         "nifty_return_20d": -2.8
     },
+    "budget": float(MAX_DAILY_INVESTMENT),
     "top_trade_plans": [],
     "watchlist_status": [],
     "high_safety_alerts": [],
@@ -49,8 +50,21 @@ STATE = {
     "last_updated_time": datetime.now().strftime("%H:%M:%S"),
     "is_scanning": False,
     "pending_order": None,
-    "pending_order_id": 0
+    "pending_order_id": 0,
+    "scored_stocks_cache": []
 }
+
+def recalculate_trade_plans_for_budget(new_budget: float):
+    """Dynamically re-evaluates position sizing, exact shares, and risk for the specified budget."""
+    STATE["budget"] = float(new_budget)
+    scored = STATE.get("scored_stocks_cache")
+    if scored:
+        trade_plans = generate_daily_trade_recommendations(scored, max_trades=3, budget=STATE["budget"])
+        STATE["top_trade_plans"] = trade_plans
+        top_tickers = [p['ticker'] for p in trade_plans]
+        for item in STATE.get("watchlist_status", []):
+            item["is_top_pick"] = item["ticker"] in top_tickers
+    return STATE.get("top_trade_plans", [])
 
 def perform_deep_market_scan():
     """Runs the full quantitative multi-factor scan across all top 30 stocks and updates the in-memory state."""
@@ -58,7 +72,8 @@ def perform_deep_market_scan():
     try:
         print("[*] Background Worker: Performing full quantitative market scan across Top 30 stocks...")
         scored_stocks, market_regime = scan_all_stocks_advanced(WATCHLIST)
-        trade_plans = generate_daily_trade_recommendations(scored_stocks, max_trades=3)
+        STATE["scored_stocks_cache"] = scored_stocks
+        trade_plans = generate_daily_trade_recommendations(scored_stocks, max_trades=3, budget=STATE.get("budget", 5000.0))
 
         # Detect any stock with Safe Percentage >= 90%
         high_safety_alerts = []
@@ -162,9 +177,31 @@ def get_dashboard():
         return f.read()
 
 @app.get("/api/live-data")
-def get_live_data():
+def get_live_data(budget: Optional[float] = None):
     """Returns latest in-memory market data instantly (< 5ms response time)."""
-    return JSONResponse(content=STATE)
+    if budget is not None and budget > 0 and budget != STATE.get("budget"):
+        recalculate_trade_plans_for_budget(budget)
+
+    # Return state omitting heavy cache objects
+    payload = {k: v for k, v in STATE.items() if k != "scored_stocks_cache"}
+    return JSONResponse(content=payload)
+
+@app.post("/api/budget")
+async def update_budget(request: Request):
+    """Allows user to customize the daily investment budget and recalculate position sizing dynamically."""
+    try:
+        data = await request.json()
+        b_val = float(data.get("budget", 5000.0))
+        if b_val <= 0:
+            return JSONResponse(status_code=400, content={"error": "Budget must be greater than 0"})
+        plans = recalculate_trade_plans_for_budget(b_val)
+        return JSONResponse(content={
+            "status": "updated",
+            "budget": b_val,
+            "top_trade_plans": plans
+        })
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
 
 @app.get("/api/notifications")
 def get_notifications():

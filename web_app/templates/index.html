@@ -296,6 +296,116 @@
             text-overflow: ellipsis;
         }
 
+        /* Dynamic Budget Card Styling */
+        .budget-card-interactive {
+            position: relative;
+            background: linear-gradient(145deg, #0f172a, #131d33);
+            border: 1px solid rgba(56, 189, 248, 0.25) !important;
+            transition: all 0.2s ease;
+        }
+
+        .budget-card-interactive:hover {
+            border-color: var(--accent-cyan) !important;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.15);
+        }
+
+        .custom-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 10px;
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .budget-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 6px 0 8px 0;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 4px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: border-color 0.2s ease;
+        }
+
+        .budget-input-wrapper:focus-within {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+        }
+
+        .currency-symbol {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--accent-cyan);
+        }
+
+        .budget-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 20px;
+            font-weight: 800;
+            outline: none;
+        }
+
+        .btn-budget-apply {
+            background: var(--accent-cyan);
+            color: #051329;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .btn-budget-apply:hover {
+            background: #7dd3fc;
+            transform: scale(1.05);
+        }
+
+        .budget-presets-row {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+
+        .chip-preset {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            padding: 2px 7px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .chip-preset:hover {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent-cyan);
+            border-color: rgba(56, 189, 248, 0.4);
+        }
+
+        .chip-preset.active {
+            background: rgba(56, 189, 248, 0.2);
+            color: var(--accent-cyan);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.25);
+        }
+
         /* Top Setups Section */
         .section-header {
             display: flex;
@@ -844,7 +954,7 @@
                 <div class="brand-subtitle">
                     <span>Real-time NSE Quantitative Engine</span>
                     <span>•</span>
-                    <span style="color:var(--accent-cyan); font-weight:600;">₹5,000 Max Daily Budget Capped</span>
+                    <span id="headerBudgetSubtitle" style="color:var(--accent-cyan); font-weight:600;">₹5,000 Max Daily Budget</span>
                 </div>
             </div>
             <div class="header-controls">
@@ -911,15 +1021,30 @@
                 <div class="stat-sub" id="marketDesc">Focus on Relative Strength Leaders</div>
             </div>
 
-            <!-- Card 2: Daily Budget Cap -->
-            <div class="stat-card">
-                <div class="stat-title">
+            <!-- Card 2: Dynamic & Modifiable Daily Budget Cap -->
+            <div class="stat-card budget-card-interactive">
+                <div class="stat-title" style="display:flex; justify-content:space-between; align-items:center;">
                     <span>Daily Capital Limit</span>
+                    <span class="custom-badge">Editable</span>
                 </div>
-                <div class="stat-val-container">
-                    <div class="stat-val mono" style="color:#fff;">₹5,000.00</div>
+                <div class="budget-input-wrapper">
+                    <span class="currency-symbol">₹</span>
+                    <input type="number" id="budgetInput" value="5000" min="500" max="1000000" step="500" 
+                           class="budget-input" oninput="handleBudgetInputChange(this.value)" 
+                           onkeydown="if(event.key==='Enter') applyCustomBudget()"
+                           title="Type any custom budget and press Enter or Apply">
+                    <button class="btn-budget-apply" id="btnBudgetApply" onclick="applyCustomBudget()" title="Apply Budget & Predict">
+                        Apply
+                    </button>
                 </div>
-                <div class="stat-sub">Strict position limits per trade</div>
+                <div class="budget-presets-row">
+                    <button class="chip-preset" id="chip-2000" onclick="setPresetBudget(2000)">₹2K</button>
+                    <button class="chip-preset active" id="chip-5000" onclick="setPresetBudget(5000)">₹5K</button>
+                    <button class="chip-preset" id="chip-10000" onclick="setPresetBudget(10000)">₹10K</button>
+                    <button class="chip-preset" id="chip-25000" onclick="setPresetBudget(25000)">₹25K</button>
+                    <button class="chip-preset" id="chip-50000" onclick="setPresetBudget(50000)">₹50K</button>
+                </div>
+                <div class="stat-sub" id="budgetStatusText">Calculates exact shares within capital</div>
             </div>
 
             <!-- Card 3: Backtest Win Rate -->
@@ -1016,8 +1141,8 @@
             } else if (Notification.permission === 'denied') {
                 txt.innerText = '🔕 Notifications Blocked';
             }
-        }
         initNotifButton();
+        initBudgetUI();
 
         async function enablePushNotifications() {
             if (!("Notification" in window)) {
@@ -1127,10 +1252,125 @@
         }
         requestAnimationFrame(updateProgressBar);
 
+        // Dynamic User Budget State (Defaults to ₹5,000, remembers user choice via localStorage)
+        let currentBudget = parseFloat(localStorage.getItem('user_quant_budget')) || 5000.0;
+        let latestServerData = null;
+
+        function initBudgetUI() {
+            const input = document.getElementById('budgetInput');
+            if (input) input.value = currentBudget;
+            updateBudgetDisplays(currentBudget);
+            updatePresetChipsUI(currentBudget);
+        }
+
+        function updateBudgetDisplays(val) {
+            const formatted = '₹' + Number(val).toLocaleString('en-IN');
+            const sub = document.getElementById('headerBudgetSubtitle');
+            if (sub) sub.innerText = `${formatted} Max Daily Budget`;
+            const statusTxt = document.getElementById('budgetStatusText');
+            if (statusTxt) statusTxt.innerText = `Calculates exact shares within ${formatted}`;
+        }
+
+        function updatePresetChipsUI(val) {
+            const presets = [2000, 5000, 10000, 25000, 50000];
+            presets.forEach(p => {
+                const chip = document.getElementById(`chip-${p}`);
+                if (chip) {
+                    if (Number(val) === p) chip.classList.add('active');
+                    else chip.classList.remove('active');
+                }
+            });
+        }
+
+        function setPresetBudget(amount) {
+            const input = document.getElementById('budgetInput');
+            if (input) input.value = amount;
+            applyCustomBudget(amount);
+        }
+
+        function handleBudgetInputChange(val) {
+            const num = parseFloat(val);
+            if (!isNaN(num) && num > 0) {
+                updatePresetChipsUI(num);
+            }
+        }
+
+        function recalculatePlanForBudget(plan, budget) {
+            const price = plan.entry_price;
+            if (price > budget) {
+                return null;
+            }
+            const qty = Math.floor(budget / price);
+            if (qty < 1) return null;
+
+            const invested = Number((qty * price).toFixed(2));
+            const sl = plan.stop_loss;
+            const t2 = plan.target_2;
+            const riskPerShare = plan.risk_per_share || (price - sl);
+            const rewardPerShare = plan.reward_per_share || (t2 - price);
+            const totalRisk = Number((qty * riskPerShare).toFixed(2));
+            const totalReward = Number((qty * rewardPerShare).toFixed(2));
+            const riskPct = Number(((riskPerShare / price) * 100).toFixed(2));
+            const rewardPct = Number(((rewardPerShare / price) * 100).toFixed(2));
+
+            return {
+                ...plan,
+                quantity: qty,
+                invested_amount: invested,
+                unallocated_cash: Number((budget - invested).toFixed(2)),
+                total_risk_inr: totalRisk,
+                total_reward_inr: totalReward,
+                risk_pct: riskPct,
+                reward_pct: rewardPct
+            };
+        }
+
+        async function applyCustomBudget(explicitAmount) {
+            const input = document.getElementById('budgetInput');
+            let val = explicitAmount !== undefined ? explicitAmount : parseFloat(input.value);
+            if (isNaN(val) || val < 100) {
+                alert("Please enter a valid investment budget (minimum ₹100).");
+                return;
+            }
+
+            currentBudget = val;
+            localStorage.setItem('user_quant_budget', currentBudget);
+            updateBudgetDisplays(currentBudget);
+            updatePresetChipsUI(currentBudget);
+
+            // Instant client-side recalculation for 0ms latency
+            if (latestServerData) {
+                renderData(latestServerData);
+            }
+
+            // Sync with backend API
+            try {
+                const btn = document.getElementById('btnBudgetApply');
+                if (btn) btn.innerText = '⏳ Syncing...';
+                const res = await fetch('/api/budget', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ budget: currentBudget })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.top_trade_plans && latestServerData) {
+                        latestServerData.top_trade_plans = data.top_trade_plans;
+                        renderData(latestServerData);
+                    }
+                }
+            } catch (err) {
+                console.warn("Backend budget sync notice:", err);
+            } finally {
+                const btn = document.getElementById('btnBudgetApply');
+                if (btn) btn.innerText = 'Apply';
+            }
+        }
+
         async function fetchLiveData() {
             progressStart = Date.now();
             try {
-                const response = await fetch('/api/live-data');
+                const response = await fetch('/api/live-data?budget=' + encodeURIComponent(currentBudget));
                 if (!response.ok) return;
                 const data = await response.json();
                 renderData(data);
@@ -1149,6 +1389,7 @@
         }
 
         function renderData(data) {
+            latestServerData = data;
             updateCount++;
             document.getElementById('syncCounter').innerText = `Sync Cycles: ${updateCount}`;
             document.getElementById('lastSyncTime').innerText = data.last_updated_time || new Date().toLocaleTimeString();
@@ -1204,12 +1445,17 @@
                 badge.style.display = 'none';
             }
 
-            // Render Top Trade Cards
+            // Render Top Trade Cards (Recalculated dynamically for current budget)
             const container = document.getElementById('tradeCardsContainer');
-            if (data.top_trade_plans && data.top_trade_plans.length > 0) {
+            const rawPlans = data.top_trade_plans || [];
+            const plansToRender = rawPlans
+                .map(plan => recalculatePlanForBudget(plan, currentBudget))
+                .filter(plan => plan !== null);
+
+            if (plansToRender.length > 0) {
                 let cardsHtml = '';
-                topAlertPlan = data.top_trade_plans[0];
-                data.top_trade_plans.forEach((plan, idx) => {
+                topAlertPlan = plansToRender[0];
+                plansToRender.forEach((plan, idx) => {
                     const prevPrice = lastPrices[plan.ticker] || plan.entry_price;
                     let priceClass = '';
                     if (plan.entry_price > prevPrice) priceClass = 'flash-up';
