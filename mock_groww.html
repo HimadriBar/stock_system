@@ -1,0 +1,54 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bharat Heavy Electricals - Groww</title>
+    <style>
+        body { font-family: sans-serif; background: #fff; padding: 20px; }
+        .order-card { width: 340px; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-left: auto; }
+        .row { display: flex; justify-content: space-between; align-items: center; margin: 16px 0; }
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 90px; text-align: right; }
+        .btn-buy { background: #00d09c; color: #fff; width: 100%; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .link-sl { color: #444; text-decoration: underline dotted; font-size: 13px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <input id="globalSearch23" placeholder="Search Groww...." />
+    
+    <div class="order-card">
+        <h3>Bharat Heavy Elect.</h3>
+        <div class="row">
+            <span style="font-weight: bold; color: #00d09c;">BUY</span>
+            <span>SELL</span>
+        </div>
+        <div class="row">
+            <button>Delivery</button> <button>Intraday</button>
+        </div>
+        
+        <!-- Qty NSE Row -->
+        <div class="row">
+            <div>Qty NSE</div>
+            <div><input type="text" id="qty-input" /></div>
+        </div>
+
+        <!-- Price Market Row -->
+        <div class="row">
+            <div>Price Market</div>
+            <div><button>At market</button></div>
+        </div>
+
+        <!-- Add Stoploss Link -->
+        <div class="row">
+            <span class="link-sl" id="add-sl-btn" onclick="document.getElementById('sl-container').style.display='flex'">Add Stoploss / Target</span>
+        </div>
+
+        <!-- Hidden SL container -->
+        <div class="row" id="sl-container" style="display: none;">
+            <div>SL trigger</div>
+            <div><input type="text" id="sl-input" /></div>
+        </div>
+
+        <button class="btn-buy" id="final-buy-button">Buy</button>
+    </div>
+</body>
+</html>

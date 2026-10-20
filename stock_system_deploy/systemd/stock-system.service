@@ -1,0 +1,19 @@
+[Unit]
+Description=Autonomous Stock Quantitative Trading Terminal
+After=network.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__APP_DIR__
+Environment="PORT=9012"
+Environment="HOST=0.0.0.0"
+Environment="PYTHONPATH=__APP_DIR__:__APP_DIR__/stock_system:__APP_DIR__/web_app"
+ExecStart=__APP_DIR__/venv/bin/python __APP_DIR__/run_server.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

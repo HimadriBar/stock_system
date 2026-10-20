@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High-Accuracy Quantitative Stock Analysis</title>
+    <style>
+        :root {
+            --bg: #0b0f19;
+            --surface: #151d30;
+            --border: #22304d;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-blue: #38bdf8;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 24px;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+        h1 { margin: 0; font-size: 24px; font-weight: 800; color: #fff; }
+        .header-badges { display: flex; gap: 12px; }
+        .badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .badge-budget { background: #0284c7; color: #fff; }
+        .badge-regime { background: #ef444422; color: #ef4444; border: 1px solid #ef4444; }
+        .section-title {
+            font-size: 15px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin: 28px 0 16px 0;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        .stock-title { font-size: 20px; font-weight: 800; display: block; }
+        .stock-ticker { font-size: 12px; color: var(--text-muted); }
+        .score-badge {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent-blue);
+            font-weight: 800;
+            font-size: 12px;
+            padding: 5px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+        .price-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            background: #0d1322;
+            padding: 12px;
+            border-radius: 10px;
+            gap: 8px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+        }
+        .price-item { display: flex; flex-direction: column; }
+        .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .val { font-size: 14px; font-weight: 700; }
+        .val.highlight { color: var(--accent-blue); }
+        .targets-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .box {
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+        }
+        .box.stop-loss {
+            background: rgba(239, 68, 68, 0.08);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        .box.target {
+            background: rgba(16, 185, 129, 0.08);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+        .box-title { font-size: 10px; font-weight: 800; letter-spacing: 0.6px; margin-bottom: 4px; }
+        .stop-loss .box-title { color: var(--accent-red); }
+        .target .box-title { color: var(--accent-green); }
+        .box-val { font-size: 17px; font-weight: 800; }
+        .box-sub { font-size: 11px; margin-top: 4px; color: var(--text-muted); }
+        .stats-banner {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 16px;
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+        .stat-box { text-align: center; }
+        .stat-value { font-size: 26px; font-weight: 800; color: var(--accent-green); }
+        .stat-desc { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface);
+            border-radius: 10px;
+            overflow: hidden;
+            font-size: 13px;
+            border: 1px solid var(--border);
+        }
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th { background: #0d1322; color: var(--text-muted); font-size: 11px; text-transform: uppercase; }
+        .tag-win { background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 3px 8px; border-radius: 4px; font-weight: 700; }
+        .tag-be { background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 3px 8px; border-radius: 4px; font-weight: 700; }
+        .info-card {
+            background: #111a2e;
+            border-left: 4px solid #38bdf8;
+            padding: 18px;
+            border-radius: 8px;
+            margin-top: 24px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>High-Accuracy Quantitative Screener</h1>
+                <div style="font-size:13px; color:#94a3b8; margin-top:4px;">Multi-Parameter Institutional Confluence: 200 SMA + DMI + OBV Flow + Connors Dip</div>
+            </div>
+            <div class="header-badges">
+                <span class="badge badge-regime">Market: CONSOLIDATION_PULLBACK</span>
+                <span class="badge badge-budget">Daily Budget: ₹5,000</span>
+            </div>
+        </header>
+
+        <div class="stats-banner">
+            <div class="stat-box">
+                <div class="stat-value">70.6%</div>
+                <div class="stat-desc">Pure Target Hit Rate</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" style="color:#38bdf8;">70.6%</div>
+                <div class="stat-desc">Capital Preservation (Win + Breakeven)</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value">1.34</div>
+                <div class="stat-desc">Strategy Profit Factor</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" style="color:#f8fafc;">180</div>
+                <div class="stat-desc">2-Year Simulated Trades</div>
+            </div>
+        </div>
+
+        <div class="section-title">Final Selected High-Confluence Trades for Today</div>
+        <div class="grid">
+            
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <span class="stock-title">TECHM</span>
+                    <span class="stock-ticker">TECHM.NS</span>
+                </div>
+                <div class="score-badge">Confluence 96/100</div>
+            </div>
+            
+            <div class="price-grid">
+                <div class="price-item">
+                    <span class="label">Entry Price</span>
+                    <span class="val highlight">₹1779.10</span>
+                </div>
+                <div class="price-item">
+                    <span class="label">Allocation Qty</span>
+                    <span class="val">2 shares</span>
+                </div>
+                <div class="price-item">
+                    <span class="label">Total Capital</span>
+                    <span class="val">₹3558.20</span>
+                </div>
+            </div>
+
+            <div class="targets-container">
+                <div class="box stop-loss">
+                    <div class="box-title">STOP LOSS</div>
+                    <div class="box-val">₹1752.41</div>
+                    <div class="box-sub">Max Risk: -₹53.38 (1.5%)</div>
+                </div>
+                <div class="box target">
+                    <div class="box-title">TARGET (1:2 R:R)</div>
+                    <div class="box-val">₹1832.48</div>
+                    <div class="box-sub">Target Gain: +₹106.76 (3.0%)</div>
+                </div>
+            </div>
+
+            <div class="signals-list">
+                <div style="font-weight:700; margin-bottom:8px; color:#38bdf8; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Open-Source Quantitative Triggers</div>
+                <ul style="padding-left:18px; margin:0; font-size:13px; color:#cbd5e1; line-height:1.5;">
+                    <li style='margin-bottom:5px;'>🚨 HIGH SAFETY ALERT: 96% Safe Setup (>90% Threshold Passed)</li><li style='margin-bottom:5px;'>Super Relative Strength Leader (+18.0% vs NIFTY)</li><li style='margin-bottom:5px;'>Uptrend Alignment (Price > 21 EMA > 50 EMA)</li><li style='margin-bottom:5px;'>Secular Bull Trend (Above Rising 200 SMA)</li><li style='margin-bottom:5px;'>Strong Buyer Trend (ADX: 34.1, +DI > -DI)</li><li style='margin-bottom:5px;'>Active Volume (1.1x avg)</li><li style='margin-bottom:5px;'>Positive OBV Institutional Accumulation</li><li style='margin-bottom:5px;'>Powerful Bullish Continuation Breakout (RSI-14: 73.8, ADX: 34.1)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <span class="stock-title">TCS</span>
+                    <span class="stock-ticker">TCS.NS</span>
+                </div>
+                <div class="score-badge">Confluence 95/100</div>
+            </div>
+            
+            <div class="price-grid">
+                <div class="price-item">
+                    <span class="label">Entry Price</span>
+                    <span class="val highlight">₹2460.90</span>
+                </div>
+                <div class="price-item">
+                    <span class="label">Allocation Qty</span>
+                    <span class="val">2 shares</span>
+                </div>
+                <div class="price-item">
+                    <span class="label">Total Capital</span>
+                    <span class="val">₹4921.80</span>
+                </div>
+            </div>
+
+            <div class="targets-container">
+                <div class="box stop-loss">
+                    <div class="box-title">STOP LOSS</div>
+                    <div class="box-val">₹2423.99</div>
+                    <div class="box-sub">Max Risk: -₹73.82 (1.5%)</div>
+                </div>
+                <div class="box target">
+                    <div class="box-title">TARGET (1:2 R:R)</div>
+                    <div class="box-val">₹2534.72</div>
+                    <div class="box-sub">Target Gain: +₹147.64 (3.0%)</div>
+                </div>
+            </div>
+
+            <div class="signals-list">
+                <div style="font-weight:700; margin-bottom:8px; color:#38bdf8; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Open-Source Quantitative Triggers</div>
+                <ul style="padding-left:18px; margin:0; font-size:13px; color:#cbd5e1; line-height:1.5;">
+                    <li style='margin-bottom:5px;'>🚨 HIGH SAFETY ALERT: 95% Safe Setup (>90% Threshold Passed)</li><li style='margin-bottom:5px;'>Super Relative Strength Leader (+19.8% vs NIFTY)</li><li style='margin-bottom:5px;'>Uptrend Alignment (Price > 21 EMA > 50 EMA)</li><li style='margin-bottom:5px;'>Strong Buyer Trend (ADX: 55.1, +DI > -DI)</li><li style='margin-bottom:5px;'>Volume Surge (1.6x 20-SMA)</li><li style='margin-bottom:5px;'>Positive OBV Institutional Accumulation</li><li style='margin-bottom:5px;'>Powerful Bullish Continuation Breakout (RSI-14: 82.2, ADX: 55.1)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <span class="stock-title">ICICIBANK</span>
+                    <span class="stock-ticker">ICICIBANK.NS</span>
+                </div>
+                <div class="score-badge">Confluence 87/100</div>
+            </div>
+            
+            <div class="price-grid">
+                <div class="price-item">
+                    <span class="label">Entry Price</span>
+                    <span class="val highlight">₹1381.00</span>
+                </div>
+                <div class="price-item">
+                    <span class="label">Allocation Qty</span>
+                    <span class="val">3 shares</span>
+                </div>
+                <div class="price-item">
+                    <span class="label">Total Capital</span>
+                    <span class="val">₹4143.00</span>
+                </div>
+            </div>
+
+            <div class="targets-container">
+                <div class="box stop-loss">
+                    <div class="box-title">STOP LOSS</div>
+                    <div class="box-val">₹1360.29</div>
+                    <div class="box-sub">Max Risk: -₹62.13 (1.5%)</div>
+                </div>
+                <div class="box target">
+                    <div class="box-title">TARGET (1:2 R:R)</div>
+                    <div class="box-val">₹1422.42</div>
+                    <div class="box-sub">Target Gain: +₹124.26 (3.0%)</div>
+                </div>
+            </div>
+
+            <div class="signals-list">
+                <div style="font-weight:700; margin-bottom:8px; color:#38bdf8; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Open-Source Quantitative Triggers</div>
+                <ul style="padding-left:18px; margin:0; font-size:13px; color:#cbd5e1; line-height:1.5;">
+                    <li style='margin-bottom:5px;'>Super Relative Strength Leader (+5.4% vs NIFTY)</li><li style='margin-bottom:5px;'>Holding above 21 EMA Support</li><li style='margin-bottom:5px;'>Secular Bull Trend (Above Rising 200 SMA)</li><li style='margin-bottom:5px;'>Strong Buyer Trend (ADX: 39.8, +DI > -DI)</li><li style='margin-bottom:5px;'>Volume Surge (2.3x 20-SMA)</li><li style='margin-bottom:5px;'>Momentum Expansion (RSI-14: 66.3)</li>
+                </ul>
+            </div>
+        </div>
+        
+        </div>
+
+        <div class="section-title">2-Year Backtest Verification Breakdown</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Stock</th>
+                    <th>Simulated Trades</th>
+                    <th>Win Rate</th>
+                    <th>Preservation Rate</th>
+                    <th>Profit Factor</th>
+                    <th>Net Gain %</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+        <tr>
+            <td style="font-weight:600;">RELIANCE</td>
+            <td>11</td>
+            <td><span class="tag-win">90.9%</span></td>
+            <td><span class="tag-be">90.9%</span></td>
+            <td>4.8</td>
+            <td style="color:#10b981; font-weight:700;">+8.89%</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight:600;">TCS</td>
+            <td>2</td>
+            <td><span class="tag-win">0.0%</span></td>
+            <td><span class="tag-be">0.0%</span></td>
+            <td>0.0</td>
+            <td style="color:#ef4444; font-weight:700;">+-5.06%</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight:600;">HDFCBANK</td>
+            <td>20</td>
+            <td><span class="tag-win">85.0%</span></td>
+            <td><span class="tag-be">85.0%</span></td>
+            <td>2.15</td>
+            <td style="color:#10b981; font-weight:700;">+8.2%</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight:600;">ICICIBANK</td>
+            <td>17</td>
+            <td><span class="tag-win">58.8%</span></td>
+            <td><span class="tag-be">58.8%</span></td>
+            <td>0.43</td>
+            <td style="color:#ef4444; font-weight:700;">+-8.61%</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight:600;">INFY</td>
+            <td>8</td>
+            <td><span class="tag-win">50.0%</span></td>
+            <td><span class="tag-be">50.0%</span></td>
+            <td>0.26</td>
+            <td style="color:#ef4444; font-weight:700;">+-8.2%</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight:600;">BHARTIARTL</td>
+            <td>14</td>
+            <td><span class="tag-win">71.4%</span></td>
+            <td><span class="tag-be">71.4%</span></td>
+            <td>1.83</td>
+            <td style="color:#10b981; font-weight:700;">+7.92%</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight:600;">ITC</td>
+            <td>3</td>
+            <td><span class="tag-win">66.7%</span></td>
+            <td><span class="tag-be">66.7%</span></td>
+            <td>0.43</td>
+            <td style="color:#ef4444; font-weight:700;">+-1.13%</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight:600;">SBIN</td>
+            <td>21</td>
+            <td><span class="tag-win">57.1%</span></td>
+            <td><span class="tag-be">57.1%</span></td>
+            <td>0.54</td>
+            <td style="color:#ef4444; font-weight:700;">+-9.82%</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight:600;">LT</td>
+            <td>22</td>
+            <td><span class="tag-win">72.7%</span></td>
+            <td><span class="tag-be">72.7%</span></td>
+            <td>0.97</td>
+            <td style="color:#ef4444; font-weight:700;">+-0.49%</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight:600;">KOTAKBANK</td>
+            <td>16</td>
+            <td><span class="tag-win">62.5%</span></td>
+            <td><span class="tag-be">62.5%</span></td>
+            <td>0.59</td>
+            <td style="color:#ef4444; font-weight:700;">+-7.01%</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight:600;">AXISBANK</td>
+            <td>29</td>
+            <td><span class="tag-win">86.2%</span></td>
+            <td><span class="tag-be">86.2%</span></td>
+            <td>3.05</td>
+            <td style="color:#10b981; font-weight:700;">+21.15%</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight:600;">HINDUNILVR</td>
+            <td>17</td>
+            <td><span class="tag-win">64.7%</span></td>
+            <td><span class="tag-be">64.7%</span></td>
+            <td>1.0</td>
+            <td style="color:#ef4444; font-weight:700;">+-0.01%</td>
+        </tr>
+        
+            </tbody>
+        </table>
+
+        <div class="info-card">
+            <strong>Execution Checklist for Groww:</strong><br>
+            1. Search for the finalized stock above in Groww.<br>
+            2. Enter the exact <strong>Quantity</strong> shown above (guarantees you never exceed your ₹5,000 budget).<br>
+            3. Set a <strong>Stop-Loss (SL)</strong> order immediately upon purchase to guard against black-swan drops.<br>
+            4. <em>Trailing Rule</em>: As soon as the stock hits +1.5% profit, move your stop-loss up to your entry price to lock in a risk-free trade!
+        </div>
+    </div>
+</body>
+</html>
