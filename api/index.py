@@ -17,23 +17,17 @@ from web_app.server import app, get_dashboard
 # Normalize Vercel rewritten paths so all routes (/ , /api/live-data, etc.) resolve cleanly
 @app.middleware("http")
 async def vercel_path_normalizer(request: Request, call_next):
-    matched_path = request.headers.get("x-matched-path")
-    original_path = request.scope.get("path", "")
-    
-    if matched_path and matched_path != original_path:
-        # Restore actual user-requested path from Vercel header
-        request.scope["path"] = matched_path
-    elif original_path == "/api/index" or original_path == "/api/index/":
-        request.scope["path"] = "/"
-    elif original_path.startswith("/api/index/"):
-        request.scope["path"] = original_path[len("/api/index"):]
+    raw_path = request.scope.get("path", "")
+    clean = raw_path
 
+    # Strip /api/index or /api/index.py prefix if Vercel prepends it
+    for prefix in ["/api/index.py", "/api/index"]:
+        if clean == prefix or clean == prefix + "/":
+            clean = "/"
+            break
+        elif clean.startswith(prefix + "/"):
+            clean = clean[len(prefix):]
+            break
+
+    request.scope["path"] = clean
     return await call_next(request)
-
-# Explicit fallback handlers for Vercel default function paths
-@app.get("/api/index", response_class=HTMLResponse)
-@app.get("/api/index/", response_class=HTMLResponse)
-@app.get("/api", response_class=HTMLResponse)
-@app.get("/api/", response_class=HTMLResponse)
-def get_dashboard_fallback():
-    return get_dashboard()
