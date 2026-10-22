@@ -9,11 +9,12 @@ Features:
 - Connors RSI-4 Deep Pullbacks & Bollinger Squeeze Releases
 """
 
+import concurrent.futures
 import yfinance as yf
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 from config import WATCHLIST, BENCHMARK_INDEX, ADVANCED_CRITERIA, HIGH_SAFETY_THRESHOLD
 
 def flatten_dataframe(df: pd.DataFrame) -> pd.DataFrame:
@@ -297,40 +298,53 @@ def score_advanced_stock(df: pd.DataFrame, market_regime: Dict) -> Dict:
         "signals": signals
     }
 
-def scan_all_stocks_advanced(tickers: Optional[List[str]] = None) -> Tuple[List[Dict], Dict]:
-    """Scans and analyzes all watchlist stocks using the advanced multi-factor engine."""
+def scan_all_stocks_advanced(tickers: Optional[List[str]] = None, return_all: bool = False) -> Union[Tuple[List[Dict], Dict], Tuple[List[Dict], Dict, List[Dict]]]:
+    """Scans and analyzes all watchlist stocks using concurrent multi-threading for fast sub-5s execution."""
     if tickers is None:
         tickers = WATCHLIST
 
     market_regime = get_market_regime()
-    results = []
-    print(f"[*] Starting high-accuracy screening across {len(tickers)} liquid stocks...")
+    print(f"[*] Starting high-speed concurrent screening across {len(tickers)} liquid stocks...")
     print(f"[*] Market Climate: {market_regime['status']} ({market_regime['desc']})")
 
-    for ticker in tickers:
+    def process_ticker(ticker: str) -> Optional[Dict]:
         try:
             stock = yf.Ticker(ticker)
-            df = stock.history(period="1y", interval="1d")
-
+            df = stock.history(period="6mo", interval="1d")
             if df is None or len(df) < 35:
-                continue
+                df = stock.history(period="1y", interval="1d")
+            if df is None or len(df) < 35:
+                return None
 
             df = flatten_dataframe(df)
             df = calculate_comprehensive_indicators(df)
             analysis = score_advanced_stock(df, market_regime)
 
             clean_name = ticker.replace(".NS", "")
-            results.append({
+            return {
                 "ticker": ticker,
                 "name": clean_name,
                 "analysis": analysis,
                 "df": df
-            })
-        except Exception as e:
-            continue
+            }
+        except Exception:
+            return None
+
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        future_map = {executor.submit(process_ticker, t): t for t in tickers}
+        for future in concurrent.futures.as_completed(future_map):
+            res = future.result()
+            if res is not None:
+                results.append(res)
+
+    # Sort all results by safe score / score descending
+    results.sort(key=lambda x: x['analysis']['score'], reverse=True)
 
     # Filter eligible stocks and sort by score descending
     valid_stocks = [r for r in results if r['analysis'].get('eligible', False)]
     valid_stocks.sort(key=lambda x: x['analysis']['score'], reverse=True)
 
+    if return_all:
+        return valid_stocks, market_regime, results
     return valid_stocks, market_regime

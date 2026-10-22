@@ -7,6 +7,7 @@ and manages pending trade dispatching to Groww.
 import os
 import sys
 import time
+import json
 import threading
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -34,25 +35,56 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+SNAPSHOT_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "stock_system", "baseline_snapshot.json"))
+
+def load_initial_state() -> Dict:
+    """Loads baseline technical snapshot so cold-starts instantly display rich market data."""
+    state = {
+        "market_regime": {
+            "status": "CONSOLIDATION_PULLBACK",
+            "desc": "NIFTY 50 in intermediate correction (-2.8% 20D). Relative strength mode active.",
+            "nifty_close": 22666.55,
+            "nifty_return_20d": -2.84
+        },
+        "budget": float(MAX_DAILY_INVESTMENT),
+        "top_trade_plans": [],
+        "watchlist_status": [],
+        "high_safety_alerts": [],
+        "high_safety_count": 0,
+        "last_updated_time": datetime.now().strftime("%H:%M:%S"),
+        "is_scanning": False,
+        "pending_order": None,
+        "pending_order_id": 0,
+        "scored_stocks_cache": []
+    }
+    if os.path.exists(SNAPSHOT_FILE):
+        try:
+            with open(SNAPSHOT_FILE, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                state.update(saved)
+                state["high_safety_count"] = len(state.get("high_safety_alerts", []))
+                state["last_updated_time"] = datetime.now().strftime("%H:%M:%S")
+                print(f"[+] Initialized state from baseline snapshot ({len(state.get('watchlist_status', []))} watchlist stocks, {len(state.get('top_trade_plans', []))} trade setups)")
+        except Exception as e:
+            print(f"[!] Warning: Failed loading baseline snapshot: {e}")
+    return state
+
 # In-Memory Cache for ultra-fast <5ms responses on 2-second polling
-STATE = {
-    "market_regime": {
-        "status": "CONSOLIDATION_PULLBACK",
-        "desc": "Scanning live market data...",
-        "nifty_close": 22610.0,
-        "nifty_return_20d": -2.8
-    },
-    "budget": float(MAX_DAILY_INVESTMENT),
-    "top_trade_plans": [],
-    "watchlist_status": [],
-    "high_safety_alerts": [],
-    "high_safety_count": 0,
-    "last_updated_time": datetime.now().strftime("%H:%M:%S"),
-    "is_scanning": False,
-    "pending_order": None,
-    "pending_order_id": 0,
-    "scored_stocks_cache": []
-}
+STATE = load_initial_state()
+
+def save_snapshot_cache():
+    """Persists latest technical scan to local cache for instant cold-starts."""
+    try:
+        data = {
+            "market_regime": STATE.get("market_regime"),
+            "top_trade_plans": STATE.get("top_trade_plans", []),
+            "watchlist_status": STATE.get("watchlist_status", []),
+            "high_safety_alerts": STATE.get("high_safety_alerts", [])
+        }
+        with open(SNAPSHOT_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
 
 def recalculate_trade_plans_for_budget(new_budget: float):
     """Dynamically re-evaluates position sizing, exact shares, and risk for the specified budget."""
@@ -61,9 +93,20 @@ def recalculate_trade_plans_for_budget(new_budget: float):
     if scored:
         trade_plans = generate_daily_trade_recommendations(scored, max_trades=3, budget=STATE["budget"])
         STATE["top_trade_plans"] = trade_plans
-        top_tickers = [p['ticker'] for p in trade_plans]
-        for item in STATE.get("watchlist_status", []):
-            item["is_top_pick"] = item["ticker"] in top_tickers
+    elif STATE.get("top_trade_plans"):
+        for plan in STATE["top_trade_plans"]:
+            price = plan.get("entry_price", 0)
+            if price > 0 and price <= new_budget:
+                qty = int(new_budget // price)
+                plan["quantity"] = qty
+                plan["invested_amount"] = round(qty * price, 2)
+                plan["unallocated_cash"] = round(new_budget - plan["invested_amount"], 2)
+                plan["total_risk_inr"] = round(plan.get("risk_per_share", 0) * qty, 2)
+                plan["total_reward_inr"] = round(plan.get("reward_per_share", 0) * qty, 2)
+    
+    top_tickers = [p['ticker'] for p in STATE.get("top_trade_plans", [])]
+    for item in STATE.get("watchlist_status", []):
+        item["is_top_pick"] = item["ticker"] in top_tickers
     return STATE.get("top_trade_plans", [])
 
 def perform_deep_market_scan():
@@ -71,13 +114,13 @@ def perform_deep_market_scan():
     STATE["is_scanning"] = True
     try:
         print("[*] Background Worker: Performing full quantitative market scan across Top 30 stocks...")
-        scored_stocks, market_regime = scan_all_stocks_advanced(WATCHLIST)
-        STATE["scored_stocks_cache"] = scored_stocks
-        trade_plans = generate_daily_trade_recommendations(scored_stocks, max_trades=3, budget=STATE.get("budget", 5000.0))
+        valid_stocks, market_regime, all_stocks = scan_all_stocks_advanced(WATCHLIST, return_all=True)
+        STATE["scored_stocks_cache"] = valid_stocks
+        trade_plans = generate_daily_trade_recommendations(valid_stocks, max_trades=3, budget=STATE.get("budget", 5000.0))
 
         # Detect any stock with Safe Percentage >= 90%
         high_safety_alerts = []
-        for stock in scored_stocks:
+        for stock in all_stocks:
             analysis = stock['analysis']
             safe_pct = analysis.get('safe_percentage', analysis.get('score', 0))
             if safe_pct >= 90:
@@ -102,7 +145,7 @@ def perform_deep_market_scan():
         # Build full watchlist radar data (All Top 30 Stocks)
         top_tickers = [p['ticker'] for p in trade_plans]
         watchlist_items = []
-        for stock in scored_stocks:
+        for stock in all_stocks:
             analysis = stock['analysis']
             ticker = stock['ticker']
             safe_pct = analysis.get('safe_percentage', analysis.get('score', 0))
@@ -111,16 +154,18 @@ def perform_deep_market_scan():
                 "slug": GROWW_SLUGS.get(ticker, ""),
                 "name": stock['name'],
                 "price": analysis['price'],
-                "return_20d": float(stock['df']['Return_20d'].iloc[-1]) if 'Return_20d' in stock['df'] else 0.0,
-                "relative_strength": analysis['relative_strength'],
-                "adx": analysis['adx'],
+                "return_20d": round(float(stock['df']['Return_20d'].iloc[-1]), 2) if 'Return_20d' in stock['df'] else 0.0,
+                "relative_strength": round(analysis['relative_strength'], 2),
+                "adx": round(analysis['adx'], 2),
                 "trend_direction": "+DI Bullish" if analysis['plus_di'] > analysis['minus_di'] else "-DI Bearish",
-                "vol_ratio": analysis['vol_ratio'],
+                "vol_ratio": round(analysis['vol_ratio'], 2),
                 "score": safe_pct,
                 "safe_percentage": safe_pct,
                 "is_high_safety": safe_pct >= 90,
                 "is_top_pick": ticker in top_tickers
             })
+
+        watchlist_items.sort(key=lambda x: (x['is_top_pick'], x['safe_percentage']), reverse=True)
 
         STATE["market_regime"] = market_regime
         STATE["top_trade_plans"] = trade_plans
@@ -128,7 +173,8 @@ def perform_deep_market_scan():
         STATE["high_safety_alerts"] = high_safety_alerts
         STATE["high_safety_count"] = len(high_safety_alerts)
         STATE["last_updated_time"] = datetime.now().strftime("%H:%M:%S")
-        print(f"[✓] Background Worker: Scan complete. Top pick: {trade_plans[0]['name'] if trade_plans else 'None'} | High-Safety Alerts: {len(high_safety_alerts)}")
+        save_snapshot_cache()
+        print(f"[+] Background Worker: Scan complete. Top pick: {trade_plans[0]['name'] if trade_plans else 'None'} | High-Safety Alerts: {len(high_safety_alerts)} | Watchlist: {len(watchlist_items)}")
     except Exception as e:
         print(f"[!] Error in deep market scan: {e}")
     finally:
@@ -139,25 +185,33 @@ def background_price_streamer():
     while True:
         try:
             time.sleep(10)
-            if not STATE["top_trade_plans"]:
+            tickers = [p['ticker'] for p in STATE.get("top_trade_plans", [])]
+            if not tickers:
                 continue
 
-            tickers = [p['ticker'] for p in STATE["top_trade_plans"]]
             df = yf.download(tickers, period="1d", interval="1m", progress=False)
             
             if df is not None and not df.empty and 'Close' in df:
                 close_df = df['Close']
-                for plan in STATE["top_trade_plans"]:
+                curr_budget = STATE.get("budget", MAX_DAILY_INVESTMENT)
+                for plan in STATE.get("top_trade_plans", []):
                     t = plan['ticker']
                     if t in close_df.columns:
                         latest_val = float(close_df[t].dropna().iloc[-1])
                         if latest_val > 0:
                             plan['entry_price'] = round(latest_val, 2)
                             plan['invested_amount'] = round(plan['quantity'] * plan['entry_price'], 2)
-                            plan['unallocated_cash'] = round(MAX_DAILY_INVESTMENT - plan['invested_amount'], 2)
+                            plan['unallocated_cash'] = round(curr_budget - plan['invested_amount'], 2)
+
+                for item in STATE.get("watchlist_status", []):
+                    t = item['ticker']
+                    if t in close_df.columns:
+                        latest_val = float(close_df[t].dropna().iloc[-1])
+                        if latest_val > 0:
+                            item['price'] = round(latest_val, 2)
 
                 STATE["last_updated_time"] = datetime.now().strftime("%H:%M:%S")
-        except Exception as e:
+        except Exception:
             pass
 
 @app.on_event("startup")
